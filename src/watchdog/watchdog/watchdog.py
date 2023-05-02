@@ -6,6 +6,8 @@ from std_msgs.msg import String
 
 class WatchdogNode(Node):
 
+    is_running: bool = False
+
     def __init__(self):
         super().__init__('watchdog')
         self.publisher = self.create_publisher(Twist, 'cmd_vel', 10)
@@ -14,6 +16,9 @@ class WatchdogNode(Node):
         self.get_logger().info('Watchdog node started')
 
     def cmd_callback(self, msg):
+        if not self.is_running:
+            self.get_logger().warn(f'I am inactive.')
+            return
         # this makes the turle go backwards
         # (just so you know its working)
         msg.linear.x = -1 * msg.linear.x
@@ -21,7 +26,12 @@ class WatchdogNode(Node):
         self.publisher.publish(msg)
         
     def controller_callback(self, msg):
-        self.get_logger().warn(f'The controller says I should {msg.data} the turtle ...')
+        self.get_logger().warn(f'The controller says I should {msg.data} the turtle !!!')
+        if msg.data == "stop":
+            self.is_running = False
+        elif msg.data == "start":
+            self.is_running = True
+        
 
 
 
