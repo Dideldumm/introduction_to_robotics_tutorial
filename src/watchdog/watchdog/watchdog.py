@@ -10,7 +10,7 @@ class WatchdogNode(Node):
 
     def __init__(self):
         super().__init__('watchdog')
-        self.publisher = self.create_publisher(Twist, 'cmd_vel', 10)
+        self.publisher = self.create_publisher(Twist, 'cmd_vel', 5)
         self.create_subscription(Twist, 'input_cmd', self.cmd_callback, 10)
         self.create_subscription(String, 'controller_cmd', self.controller_callback, 10)
         self.get_logger().info('Watchdog node started')
