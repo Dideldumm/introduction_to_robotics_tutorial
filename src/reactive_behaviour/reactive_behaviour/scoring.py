@@ -118,7 +118,7 @@ class ScoringNode(DrivingSwarmNode):
         if self.score_image is not None:
             self.get_logger().info(f'score: {np.sum(self.score_image)/10_000} at t={0.5*self.t}s')
         self.t+=1
-        self.status_pub.publish(self.t)
+        self.status_pub.publish(String(data=str(0.5*self.t)))
    
 def main():
     rclpy.init()

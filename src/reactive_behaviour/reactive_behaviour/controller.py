@@ -20,20 +20,17 @@ class VelocityController(Node):
     def timer_cb(self):
         msg = Twist()
         x = self.forward_distance - 0.3
-        if self.score_status > 25:
-            msg.linear.x = 0.0
-            msg.angular.x = 0.0
+        # if self.score_status > 15:
+        #     msg.linear.x = 0.0
+        #     msg.angular.x = 0.0
         if x < 0.1:
             msg.angular.x = 0.7
             msg.linear.x = 0.0
         else:
             msg.linear.x = 0.2
             msg.angular.x = 0.0
+        msg.linear.x = 0.2
         
-            
-        # x = x if x < 0.1 else 0.1
-        # x = x if x >= 0 else 0.0
-        # msg.linear.x = x
         self.publisher.publish(msg)
     
     def laser_cb(self, msg):
