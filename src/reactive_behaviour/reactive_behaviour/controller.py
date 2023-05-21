@@ -3,7 +3,7 @@ from rclpy.node import Node
 
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
-from std.msgs.msg import String
+from std_msgs.msg import String
 
 class VelocityController(Node):
 
@@ -23,12 +23,12 @@ class VelocityController(Node):
         # if self.score_status > 15:
         #     msg.linear.x = 0.0
         #     msg.angular.x = 0.0
-        if x < 0.1:
-            msg.angular.x = 0.7
-            msg.linear.x = 0.0
-        else:
-            msg.linear.x = 0.2
-            msg.angular.x = 0.0
+        # if x < 0.1:
+        #     msg.angular.x = 0.7
+        #     msg.linear.x = 0.0
+        # else:
+        #     msg.linear.x = 0.2
+        #     msg.angular.x = 0.0
         msg.linear.x = 0.2
         
         self.publisher.publish(msg)
