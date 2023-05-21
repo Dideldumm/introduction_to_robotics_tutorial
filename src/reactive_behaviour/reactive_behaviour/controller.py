@@ -20,6 +20,7 @@ class VelocityController(Node):
         self.score_status = 0
         self.scan_time = 0.0
         self.forward_distance = 0
+        self.turn_counter = 0
 
     def timer_cb(self):
         msg = Twist()
@@ -33,6 +34,13 @@ class VelocityController(Node):
         else:
             msg.linear.x = 0.2
             msg.angular.z = 0.0
+        if self.turn_counter % 4 > 1:
+            msg.angular.z = msg.angular.z * -1
+            self.turn_counter += 1
+
+        self.publisher.publish(msg)
+
+    def laser_cb(self, msg):
         if self.active:
             self.get_logger().info(
                 "Score status: "
@@ -42,12 +50,6 @@ class VelocityController(Node):
                 + " - Scan time: "
                 + str(self.scan_time)
             )
-
-        self.publisher.publish(msg)
-
-    def laser_cb(self, msg):
-        if self.score_status % 10 == 0:
-            self.get_logger().info(str(self.forward_distance))
         self.scan_time = msg.scan_time
         self.forward_distance = msg.ranges[0]
 
