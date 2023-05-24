@@ -18,40 +18,44 @@ class VelocityController(Node):
         self.get_logger().info("controller node started")
         self.active = True
         self.score_status = 0
-        self.scan_time = 0.0
         self.forward_distance = 0
-        self.turn_counter = 0
+        self.right_distance = 0
+        self.left_distance = 0
+        self.simulation_time = 0
+        self.last_was_east = False
 
     def timer_cb(self):
         msg = Twist()
-        x = self.forward_distance - 0.4
-        if self.score_status > 15:
-            msg.linear.x = 0.0
-            msg.angular.z = 0.0
-        elif x < 0.0:
+        x = self.forward_distance - 0.4 - int(self.simulation_time / (10 * 60 * 2))
+        if x < 0.0:
             msg.angular.z = 0.7
             msg.linear.x = 0.0
         else:
             msg.linear.x = 0.2
             msg.angular.z = 0.0
-        if self.turn_counter % 4 > 1:
-            msg.angular.z = msg.angular.z * -1
-            self.turn_counter += 1
 
+        if self.right_distance > self.left_distance:
+            msg.angular.z = msg.angular.z * -1
+        
+        self.simulation_time += 1
         self.publisher.publish(msg)
 
     def laser_cb(self, msg):
-        if self.active:
-            self.get_logger().info(
-                "Score status: "
-                + str(self.score_status)
-                + " - Distance: "
-                + str(self.forward_distance)
-                + " - Scan time: "
-                + str(self.scan_time)
-            )
-        self.scan_time = msg.scan_time
-        self.forward_distance = msg.ranges[0]
+        # if self.active:
+            # self.get_logger().info(
+            #     "Score status: "
+            #     + str(self.score_status)
+            #     + " - Distances: "
+            #     + str(msg.ranges)
+            #     + " - Scan time: "
+            #     + str(msg.scan_time)
+            # )
+        buffer_angle = 20
+        right_distances = msg.ranges[len(msg.ranges)-buffer_angle:]
+        left_distances = msg.ranges[0:buffer_angle]
+        self.left_distance = msg.ranges[90]
+        self.right_distance = msg.ranges[180 + 90]
+        self.forward_distance = min(min(left_distances), min(right_distances))
 
     def score_status_cb(self, msg):
         self.score_status = int(msg.data) if msg.data.isdigit() else self.score_status
