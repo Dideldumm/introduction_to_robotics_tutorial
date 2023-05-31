@@ -26,7 +26,7 @@ class VelocityController(Node):
 
     def timer_cb(self):
         msg = Twist()
-        x = self.forward_distance - 0.4 - int(self.simulation_time / (10 * 60 * 2))
+        x = self.forward_distance - 0.4 - self.simulation_time / (10 * 60 * 2)
         if x < 0.0:
             msg.angular.z = 0.7
             msg.linear.x = 0.0
