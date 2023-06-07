@@ -20,10 +20,18 @@ class VelocityController(Node):
         
     def timer_cb(self):
         msg = Twist()
-        x = self.forward_distance - 0.3
-        x = x if x < 0.1 else 0.1
-        x = x if x >= 0 else 0.0
-        msg.linear.x = x
+        x = self.forward_distance - 0.2 - self.simulation_time / (10 * 60 * 2)
+        if x < 0.0:
+            msg.angular.z = 0.7
+            msg.linear.x = 0.0
+        else:
+            msg.linear.x = 0.2
+            msg.angular.z = 0.0
+
+        if self.right_distance > self.left_distance:
+            msg.angular.z = msg.angular.z * -1
+        
+        self.simulation_time += 1
         self.publisher.publish(msg)
     
     def goal_cb(self, msg):
@@ -33,7 +41,12 @@ class VelocityController(Node):
             self.goal = goal
     
     def laser_cb(self, msg):
-        self.forward_distance = msg.ranges[0]
+        buffer_angle = 20
+        right_distances = msg.ranges[len(msg.ranges)-buffer_angle:]
+        left_distances = msg.ranges[0:buffer_angle]
+        self.left_distance = msg.ranges[90]
+        self.right_distance = msg.ranges[180 + 90]
+        self.forward_distance = min(min(left_distances), min(right_distances))
         
     def position_cb(self, msg):
         self.position = msg.point.x, msg.point.y
