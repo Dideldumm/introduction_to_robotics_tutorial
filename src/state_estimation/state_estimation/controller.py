@@ -9,7 +9,6 @@ class VelocityController(Node):
     def __init__(self):
         super().__init__('velocity_controller')
         self.publisher = self.create_publisher(Twist, 'cmd_vel', 10)
-        self.forward_distance = 0
         self.goal = None
         self.position = None
         self.create_subscription(LaserScan, 'scan', self.laser_cb, rclpy.qos.qos_profile_sensor_data)
@@ -17,6 +16,10 @@ class VelocityController(Node):
         self.create_subscription(PointStamped, 'position', self.position_cb, 10)
         self.create_timer(0.1, self.timer_cb)
         self.get_logger().info('controller node started')
+        self.forward_distance = 0
+        self.left_distance = 0
+        self.right_distance = 0
+        self.simulation_time = 0
         
     def timer_cb(self):
         msg = Twist()
