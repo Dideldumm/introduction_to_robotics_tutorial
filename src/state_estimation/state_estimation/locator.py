@@ -7,6 +7,9 @@ from geometry_msgs.msg import PointStamped
 
 
 class LocatorNode(Node):
+    anchor_ranges = None
+    position_pub = None
+    initialized = False
 
     def __init__(self):
         super().__init__('locator_node')
@@ -33,6 +36,10 @@ class LocatorNode(Node):
         self.position_pub.publish(msg)
     
     def calculate_position(self):
+        for msg in self.anchor_ranges:
+            self.get_logger().info(str(msg.anchor))
+            self.get_logger().info(str(msg.range))
+            
         if not len(self.anchor_ranges):
             return 0.0, 0.0, 0.0
         
