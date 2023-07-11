@@ -1,5 +1,7 @@
 import rclpy
 from rclpy.node import Node
+import numpy as np
+import math
 
 from geometry_msgs.msg import Twist, PoseStamped, PointStamped
 from sensor_msgs.msg import LaserScan
@@ -9,50 +11,50 @@ class VelocityController(Node):
     def __init__(self):
         super().__init__('velocity_controller')
         self.publisher = self.create_publisher(Twist, 'cmd_vel', 10)
+        self.forward_distance = 0
         self.goal = None
         self.position = None
+        self.previous_position = None
         self.create_subscription(LaserScan, 'scan', self.laser_cb, rclpy.qos.qos_profile_sensor_data)
         self.create_subscription(PoseStamped, 'nav/goal', self.goal_cb, 10)
         self.create_subscription(PointStamped, 'position', self.position_cb, 10)
         self.create_timer(0.1, self.timer_cb)
         self.get_logger().info('controller node started')
-        self.forward_distance = 0
-        self.left_distance = 0
-        self.right_distance = 0
-        self.simulation_time = 0
         
     def timer_cb(self):
-        msg = Twist()
-        x = self.forward_distance - 0.2 - self.simulation_time / (10 * 60 * 2)
-        if x < 0.0:
-            msg.angular.z = 0.7
+        if self.forward_distance < 0.3:
+            msg = Twist()
             msg.linear.x = 0.0
-        else:
-            msg.linear.x = 0.2
-            msg.angular.z = 0.0
-
-        if self.right_distance > self.left_distance:
-            msg.angular.z = msg.angular.z * -1
-        
-        self.simulation_time += 1
+            msg.angular.z = 1.0
+            self.publisher.publish(msg)
+            return
+        msg = Twist()
+        msg.linear.x = 0.1
+        if self.goal is not None and self.position is not None and self.previous_position is not None:
+            a = np.linalg.norm(self.goal - self.position)
+            b = np.linalg.norm(self.goal - self.previous_position)
+            c = np.linalg.norm(self.position - self.previous_position)
+            angle = math.acos((c**2 + b**2 - a**2) / (2 * c * b))
+            direction = np.cross(np.append(self.position , np.zeros(1,))- np.append(self.previous_position , np.zeros(1,)), np.append(self.goal , np.zeros(1,)) - np.append(self.previous_position , np.zeros(1,)))
+            if direction[-1] > 0:
+                angle = -angle
+            self.get_logger().info(f'angle: {angle}')
+            if (abs(angle) > 0.05):
+                msg.angular.z = -math.copysign(0.25, angle)
         self.publisher.publish(msg)
     
     def goal_cb(self, msg):
-        goal = msg.pose.position.x, msg.pose.position.y
-        if self.goal != goal:
+        goal = np.array([msg.pose.position.x, msg.pose.position.y])
+        if self.goal is None or (self.goal != goal).all():
             self.get_logger().info(f'received a new goal: (x={goal[0]}, y={goal[1]})')
             self.goal = goal
     
     def laser_cb(self, msg):
-        buffer_angle = 20
-        right_distances = msg.ranges[len(msg.ranges)-buffer_angle:]
-        left_distances = msg.ranges[0:buffer_angle]
-        self.left_distance = msg.ranges[90]
-        self.right_distance = msg.ranges[180 + 90]
-        self.forward_distance = min(min(left_distances), min(right_distances))
+        self.forward_distance = msg.ranges[0]
         
     def position_cb(self, msg):
-        self.position = msg.point.x, msg.point.y
+        self.previous_position = self.position
+        self.position = np.array([msg.point.x, msg.point.y])
 
 
 def main(args=None):

@@ -7,9 +7,6 @@ from geometry_msgs.msg import PointStamped
 
 
 class LocatorNode(Node):
-    anchor_ranges = None
-    position_pub = None
-    initialized = False
 
     def __init__(self):
         super().__init__('locator_node')
@@ -17,6 +14,7 @@ class LocatorNode(Node):
         self.create_subscription(Range, 'range', self.range_cb, 10)
         self.position_pub = self.create_publisher(PointStamped, 'position', 10)
         self.initialized = False
+        self.position = np.zeros((3,))
         self.create_timer(1.0, self.timer_cb)
         self.get_logger().info('locator node started')
         
@@ -29,23 +27,36 @@ class LocatorNode(Node):
 
     def timer_cb(self):
         if not self.initialized:
+            self.get_logger().info('no range received yet')
             return
         msg = PointStamped()
         msg.point.x, msg.point.y, msg.point.z = self.calculate_position()
         msg.header.frame_id = 'world'
+        self.get_logger().info(f'publishing position: {msg}')
         self.position_pub.publish(msg)
     
     def calculate_position(self):
-        for msg in self.anchor_ranges:
-            self.get_logger().info(str(msg.anchor))
-            self.get_logger().info(str(msg.range))
-            
         if not len(self.anchor_ranges):
             return 0.0, 0.0, 0.0
-        
+        #x_new = x_old- dR(x_old)(pinv) * R(x_old)
+        #R(x_old) = [m1 - |a1-x_old|, m2 - |a2-x_old|, ...]
+        #dR(x_old) = -[[x_old1 - a1,1 / |x_old-a1|, x_old2 - a1,2 / |x_old-a1|,  x_old3 - a1,3 / |x_old-a1|]
+        #              [x_old1 - a2,1 / |x_old-a2|, x_old2 - a2,2 / |x_old-a2|,  x_old3 - a2,3 / |x_old-a2|],...]]
         # YOUR CODE GOES HERE:
-        x = np.mean([r.range for r in self.anchor_ranges]) - 0.5
-        return x, 0.0, 0.0
+        x_old = self.position
+        for _ in range(100):
+            norm = np.linalg.norm(np.array([self.anchor_ranges[0].anchor.x,self.anchor_ranges[0].anchor.y, self.anchor_ranges[0].anchor.z]) - x_old)
+            self.get_logger().info(f'norm: {norm}')
+            #matrix = np.fromfunction(lambda i: self.anchor_ranges[i].range - np.linalg.norm(np.array([self.anchor_ranges[i].anchor.x,self.anchor_ranges[i].anchor.y, self.anchor_ranges[i].anchor.z]) - x_old), (len(self.anchor_ranges),), dtype=int)
+            matrix = np.array([self.anchor_ranges[i].range - np.linalg.norm(np.array([self.anchor_ranges[i].anchor.x,self.anchor_ranges[i].anchor.y, self.anchor_ranges[i].anchor.z]) - x_old) for i in range(len(self.anchor_ranges))])
+            #derivative_matrix = -1 * np.fromfunction(lambda i, j: (x_old[j] - self.anchor_ranges[i].anchor[j]) / np.linalg.norm(x_old - np.array([self.anchor_ranges[i].anchor.x,self.anchor_ranges[i].anchor.y, self.anchor_ranges[i].anchor.z])), (len(self.anchor_ranges), 3), dtype=int)
+            derivative_matrix = -1 * np.array([(x_old[j] - [self.anchor_ranges[i].anchor.x,self.anchor_ranges[i].anchor.y, self.anchor_ranges[i].anchor.z][j]) / np.linalg.norm(x_old - np.array([self.anchor_ranges[i].anchor.x,self.anchor_ranges[i].anchor.y, self.anchor_ranges[i].anchor.z])) for i in range(len(self.anchor_ranges)) for j in range(3)]).reshape(len(self.anchor_ranges), 3)
+            x_new = x_old - np.matmul(np.linalg.pinv(derivative_matrix), matrix)
+            if np.linalg.norm(x_new - x_old) < 0.01:
+                break
+            x_old = x_new
+        self.position = x_old
+        return tuple(x_old)
 
 
 def main(args=None):
