@@ -22,35 +22,37 @@ class VelocityController(Node):
         self.get_logger().info('controller node started')
         
     def timer_cb(self):
-        msg = Twist()
-        if self.forward_distance < 0.3:
+        if self.forward_distance < 0.5:
+            msg = Twist()
             msg.linear.x = 0.0
             msg.angular.z = 1.0
             self.publisher.publish(msg)
             return
+        msg = Twist()
         msg.linear.x = 0.1
-        msg.angular.z = 0.0
         if self.goal is not None and self.position is not None and self.previous_position is not None:
-            desired = np.linalg.norm(self.goal - self.position)
-            heading = np.linalg.norm(self.position - self.previous_position)
-            angle = math.degrees(math.acos((np.dot(desired, heading))))
-            #direction = np.cross(np.append(self.position , np.zeros(1,))- np.append(self.previous_position , np.zeros(1,)), np.append(self.goal , np.zeros(1,)) - np.append(self.previous_position , np.zeros(1,)))
-            #if direction[-1] > 0:
-            #    angle = -angle
+            a = np.linalg.norm(self.goal - self.position)
+            b = np.linalg.norm(self.goal - self.previous_position)
+            c = np.linalg.norm(self.position - self.previous_position)
+            angle = math.acos((c**2 + b**2 - a**2) / (2 * c * b))
+            direction = np.cross(np.append(self.position , np.zeros(1,))- np.append(self.previous_position , np.zeros(1,)), np.append(self.goal , np.zeros(1,)) - np.append(self.previous_position , np.zeros(1,)))
+            if direction[-1] < 0:
+                angle = -angle
+            angle = math.degrees(angle)
             self.get_logger().info(f'angle: {angle}')
             if (abs(angle) > 1):
-                msg.angular.z = 0.25
+                msg.angular.z = math.copysign(0.25, angle)
         self.publisher.publish(msg)
     
     def goal_cb(self, msg):
         goal = np.array([msg.pose.position.x, msg.pose.position.y])
         if self.goal is None or (self.goal != goal).all():
-            self.get_logger().info(f'received desired new goal: (x={goal[0]}, y={goal[1]})')
+            self.get_logger().info(f'received a new goal: (x={goal[0]}, y={goal[1]})')
             self.goal = goal
     
     def laser_cb(self, msg):
-        buffer_angle = 20
-        right_distances = msg.ranges[-buffer_angle:]
+        buffer_angle = 15
+        right_distances = msg.ranges[len(msg.ranges)-buffer_angle:]
         left_distances = msg.ranges[0:buffer_angle]
         self.forward_distance = min(min(left_distances), min(right_distances))
         
