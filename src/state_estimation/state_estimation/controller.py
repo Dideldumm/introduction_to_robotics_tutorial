@@ -31,15 +31,16 @@ class VelocityController(Node):
         msg = Twist()
         msg.linear.x = 0.1
         if self.goal is not None and self.position is not None and self.previous_position is not None:
-            a = np.linalg.norm(self.goal - self.position)
-            b = np.linalg.norm(self.goal - self.previous_position)
-            c = np.linalg.norm(self.position - self.previous_position)
-            angle = math.acos((c**2 + b**2 - a**2) / (2 * c * b))
+            desired = np.linalg.norm(self.goal - self.position)
+            prev_desired = np.linalg.norm(self.goal - self.previous_position)
+            heading = np.linalg.norm(self.position - self.previous_position)
+            angle = math.acos((heading**2 + prev_desired**2 - desired**2) / (2 * heading * prev_desired))
             direction = np.cross(np.append(self.position , np.zeros(1,))- np.append(self.previous_position , np.zeros(1,)), np.append(self.goal , np.zeros(1,)) - np.append(self.previous_position , np.zeros(1,)))
             if direction[-1] < 0:
                 angle = -angle
             angle = math.degrees(angle)
             self.get_logger().info(f'angle: {angle}')
+            self.get_logger().info(f'goal: (x={self.goal[0]}, y={self.goal[1]})')
             if (abs(angle) > 1):
                 msg.angular.z = math.copysign(0.25, angle)
         self.publisher.publish(msg)
