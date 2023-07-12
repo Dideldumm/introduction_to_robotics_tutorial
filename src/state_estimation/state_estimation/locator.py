@@ -38,18 +38,11 @@ class LocatorNode(Node):
     def calculate_position(self):
         if not len(self.anchor_ranges):
             return 0.0, 0.0, 0.0
-        #x_new = x_old- dR(x_old)(pinv) * R(x_old)
-        #R(x_old) = [m1 - |a1-x_old|, m2 - |a2-x_old|, ...]
-        #dR(x_old) = -[[x_old1 - a1,1 / |x_old-a1|, x_old2 - a1,2 / |x_old-a1|,  x_old3 - a1,3 / |x_old-a1|]
-        #              [x_old1 - a2,1 / |x_old-a2|, x_old2 - a2,2 / |x_old-a2|,  x_old3 - a2,3 / |x_old-a2|],...]]
-        # YOUR CODE GOES HERE:
         x_old = self.position
         for _ in range(100):
             norm = np.linalg.norm(np.array([self.anchor_ranges[0].anchor.x,self.anchor_ranges[0].anchor.y, self.anchor_ranges[0].anchor.z]) - x_old)
             self.get_logger().info(f'norm: {norm}')
-            #matrix = np.fromfunction(lambda i: self.anchor_ranges[i].range - np.linalg.norm(np.array([self.anchor_ranges[i].anchor.x,self.anchor_ranges[i].anchor.y, self.anchor_ranges[i].anchor.z]) - x_old), (len(self.anchor_ranges),), dtype=int)
             matrix = np.array([self.anchor_ranges[i].range - np.linalg.norm(np.array([self.anchor_ranges[i].anchor.x,self.anchor_ranges[i].anchor.y, self.anchor_ranges[i].anchor.z]) - x_old) for i in range(len(self.anchor_ranges))])
-            #derivative_matrix = -1 * np.fromfunction(lambda i, j: (x_old[j] - self.anchor_ranges[i].anchor[j]) / np.linalg.norm(x_old - np.array([self.anchor_ranges[i].anchor.x,self.anchor_ranges[i].anchor.y, self.anchor_ranges[i].anchor.z])), (len(self.anchor_ranges), 3), dtype=int)
             derivative_matrix = -1 * np.array([(x_old[j] - [self.anchor_ranges[i].anchor.x,self.anchor_ranges[i].anchor.y, self.anchor_ranges[i].anchor.z][j]) / np.linalg.norm(x_old - np.array([self.anchor_ranges[i].anchor.x,self.anchor_ranges[i].anchor.y, self.anchor_ranges[i].anchor.z])) for i in range(len(self.anchor_ranges)) for j in range(3)]).reshape(len(self.anchor_ranges), 3)
             x_new = x_old - np.matmul(np.linalg.pinv(derivative_matrix), matrix)
             if np.linalg.norm(x_new - x_old) < 0.01:
