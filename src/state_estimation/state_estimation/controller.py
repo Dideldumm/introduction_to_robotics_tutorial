@@ -5,6 +5,7 @@ import math
 
 from geometry_msgs.msg import Twist, PoseStamped, PointStamped
 from sensor_msgs.msg import LaserScan
+import tf_transformations
 
 class VelocityController(Node):
 
@@ -18,6 +19,7 @@ class VelocityController(Node):
         self.create_subscription(LaserScan, 'scan', self.laser_cb, rclpy.qos.qos_profile_sensor_data)
         self.create_subscription(PoseStamped, 'nav/goal', self.goal_cb, 10)
         self.create_subscription(PointStamped, 'position', self.position_cb, 10)
+        self.pose_publisher = self.create_publisher(PoseStamped, 'pose_marker', 10)
         self.create_timer(0.1, self.timer_cb)
         self.get_logger().info('controller node started')
         
@@ -44,6 +46,8 @@ class VelocityController(Node):
             if (abs(angle) > 1):
                 msg.angular.z = math.copysign(0.25, angle)
         self.publisher.publish(msg)
+        angle = 0
+        self.publish_marker((0,0), angle, relative=True)
     
     def goal_cb(self, msg):
         goal = np.array([msg.pose.position.x, msg.pose.position.y])
@@ -60,6 +64,26 @@ class VelocityController(Node):
     def position_cb(self, msg):
         self.previous_position = self.position
         self.position = np.array([msg.point.x, msg.point.y])
+    
+    def publish_marker(self, position, angle, relative=False):
+        msg = PoseStamped()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        if not relative:
+            msg.header.frame_id = 'map'
+        else:
+            msg.header.frame_id = 'base_link'
+
+        msg.pose.position.x = float(position[0])
+        msg.pose.position.y = float(position[1])
+        msg.pose.position.z = 0.0
+
+        q = tf_transformations.quaternion_from_euler(0, 0, angle)
+        msg.pose.orientation.x = q[0]
+        msg.pose.orientation.y = q[1]
+        msg.pose.orientation.z = q[2]
+        msg.pose.orientation.w = q[3]
+
+        self.pose_publisher.publish(msg)
 
 
 def main(args=None):
